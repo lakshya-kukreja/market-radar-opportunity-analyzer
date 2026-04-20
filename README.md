@@ -1,5 +1,7 @@
 # Live Market Anomaly Radar 🚀
 
+
+**📊 [Link to Demo Youtube Tutorial](https://youtu.be/AuhWSQpqWXc?si=wntHMf959rFkRGwV)**
 **📊 [Link to Live Looker Studio Dashboard](https://datastudio.google.com/reporting/a3f00207-7bb8-45c4-822c-8cde0e2c4567)**
 
 ![Architecture Diagram](images/final_flow.png)
