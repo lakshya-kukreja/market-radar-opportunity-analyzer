@@ -471,6 +471,20 @@ uv run dbt run
 
 **final_dataset:**market_radar_prod_dbt
 
+
+### Linux Cron
+- The absolute easiest and most reliable way to schedule your dbt run is to bypass Docker entirely and use the VM's built-in scheduler: Cron.
+
+Step 1: Open your terminal and type this command to edit your VM's scheduler
+```bash
+crontab -e
+```
+
+Step 2: Use your arrow keys to scroll to the very bottom of the file and paste this exact line:
+```bash
+0 9 * * * bash -l -c "cd /home/lakshyakukreja7official/de-zoomcamp-final-project/dbt-transformations/market_radar_dbt && uv run dbt run"
+```
+
 # Phase 7: The Presentation Layer (Looker Studio)
 
 ![looker_1](images/looker_1.png)
