@@ -1,0 +1,147 @@
+id: market_supply_batch_scraper
+namespace: market_radar
+description: "Daily batch job to scrape OpenStreetMap for existing business supply."
+
+variables:
+  bucket_name: "de-zoomcamp-final-project-bucket-7"
+  project_id: "de-zoomcamp-2-485306"
+
+tasks:
+  - id: extract_osm_supply
+    type: io.kestra.plugin.scripts.python.Script
+    description: "Queries Overpass API for existing business counts."
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    outputFiles:
+      - "supply_data.json"
+    script: |
+      import urllib.request
+      import urllib.parse
+      import urllib.error  # Added to catch specific HTTP errors
+      import json
+      import time
+      from datetime import datetime, timezone
+      import random
+
+      OVERPASS_ENDPOINTS = [
+          "https://overpass-api.de/api/interpreter",
+          "https://overpass.kumi.systems/api/interpreter"]
+
+      # At the top of your loop, pick one
+      
+
+      def query_overpass(overpass_query, retries=3):
+          data = urllib.parse.urlencode({'data': overpass_query}).encode('utf-8')
+          headers = {'User-Agent': 'MarketRadarDataPipeline/1.0 (Contact: local-dev)'}
+          
+          for attempt in range(retries):
+              overpass_url = random.choice(OVERPASS_ENDPOINTS)
+              try:
+                  req = urllib.request.Request(overpass_url, data=data, headers=headers)
+                  with urllib.request.urlopen(req, timeout=90) as response:
+                      return json.loads(response.read().decode('utf-8'))
+              except urllib.error.HTTPError as e:
+                  if e.code == 504 and attempt < retries - 1:
+                      wait = (2 ** attempt) * 10  # 10s, 20s, 40s
+                      print(f"⏳ 504 on attempt {attempt+1}, retrying in {wait}s...")
+                      time.sleep(wait)
+                  else:
+                      raise
+
+              except (urllib.error.URLError, socket.timeout) as e:
+                  # Covers read timeouts and connection errors
+                  if attempt < retries - 1:
+                      wait = (2 ** attempt) * 10
+                      print(f"⏳ Timeout on attempt {attempt+1}, retrying in {wait}s...")
+                      time.sleep(wait)
+                  else:
+                      raise
+          return None
+      
+
+
+      locations = {
+          "Surat": {"lat": 21.1702, "lon": 72.8311},
+          "Mumbai": {"lat": 19.0760, "lon": 72.8777},
+          "Delhi": {"lat": 28.7041, "lon": 77.1025},
+          "Bangalore": {"lat": 12.9716, "lon": 77.5946},
+          "Pune": {"lat": 18.5204, "lon": 73.8567}
+      }
+
+      queries = {
+          "cloud kitchen": '["amenity"="restaurant"]["delivery"="yes"]',
+          "ev charging station": '["amenity"="charging_station"]',
+          "co-working space": '["amenity"="coworking_space"]',
+          "organic grocery": '["shop"="supermarket"]["organic"="yes"]'
+      }
+
+      results = []
+
+      print("🚀 Starting OpenStreetMap Supply Extraction...")
+
+      for city, coords in locations.items():
+          for concept, query in queries.items():
+              overpass_url = random.choice(OVERPASS_ENDPOINTS)
+              offset = 0.072
+              lat_min, lat_max = coords['lat'] - offset, coords['lat'] + offset
+              lon_min, lon_max = coords['lon'] - offset, coords['lon'] + offset
+
+              overpass_query = f"""
+              [out:json][timeout:25];
+              (
+                node{query}({lat_min},{lon_min},{lat_max},{lon_max});
+              );
+              out count;
+              """
+
+              try:
+                  res_data = query_overpass(overpass_query)
+                  count = 0
+                  if res_data and 'elements' in res_data and res_data['elements']:
+                      tags = res_data['elements'][0].get('tags', {})
+                      count = int(tags.get('total', 0))  # ← 'total', not 'nodes'
+
+                  results.append({
+                      "extraction_date": datetime.now(timezone.utc).strftime('%Y-%m-%d'),
+                      "city": city,
+                      "business_type": concept,
+                      "existing_count": count,
+                      "error": None
+                  })
+                  print(f"✅ {city} - {concept}: {count}")
+
+              except Exception as e:
+                  print(f"❌ Failed {city} - {concept}: {e}")
+                  results.append({
+                      "extraction_date": datetime.now(timezone.utc).strftime('%Y-%m-%d'),
+                      "city": city,
+                      "business_type": concept,
+                      "existing_count": 0,
+                      "error": str(e)
+                  })
+
+              time.sleep(random.uniform(10, 15)) 
+
+      with open("supply_data.json", "w") as f:
+          json.dump(results, f, indent=4)
+
+      print(f"💾 Successfully saved {len(results)} records to supply_data.json")
+
+
+  - id: upload_to_gcs
+    type: io.kestra.plugin.gcp.gcs.Upload
+    description: "Uploads the local JSON file to the GCP Data Lake."
+    from: "{{ outputs.extract_osm_supply.outputFiles['supply_data.json'] }}"
+    to: "gs://{{ vars.bucket_name }}/raw/supply/{{ execution.startDate | date('yyyy-MM-dd') }}_robust_supply.json"
+    projectId: "{{ vars.project_id }}"
+    serviceAccount: "{{ secret('GCP_CREDS') }}"
+
+
+  - id: log_success
+    type: io.kestra.plugin.core.log.Log
+    message: "Data is Successfully uploaded in GCS, visit gs://{{ vars.bucket_name }}/raw/supply/{{ execution.startDate | date('yyyy-MM-dd') }}_robust_supply.json"
+
+triggers:
+  - id: daily_schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 6 * * *" 

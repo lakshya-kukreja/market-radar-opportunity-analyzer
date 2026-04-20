@@ -1,0 +1,93 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+
+# ==========================================
+# Python & Environment
+# ==========================================
+**/__pycache__/
+__pycache__/
+*.py[cod]
+*$py.class
+*.pkl
+*.log
+*.lock
+*.toml
+*.python-version
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Jupyter / IPython
+.ipynb_checkpoints
+
+# IDEs
+.vscode/
+.idea/
+*.code-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# Data Files & Output (Zoomcamp)
+# ==========================================
+*.csv.gz
+*.csv
+*.parquet
+*.jsonl
+*.avro
+output/
+data/
+
+# --- The Seed Exception ---
+# Keep small dictionary seeds, ignore massive raw CSVs
+!seeds/*.csv
+!*/seeds/*.csv
+
+# ==========================================
+# Credentials, Secrets & Docker
+# ==========================================
+.env
+.env_encoded
+.gcp_keys/
+*.json
+docker-compose.override.yml
+
+# ==========================================
+# Frameworks (dbt & Bruin)
+# ==========================================
+# dbt Specific
+target/
+dbt_packages/
+
+# Bruin Specific & Run Logs
+.bruin.yml
+logs/
+logs/runs
+
+# Ignore local databases and Terraform binaries
+*.duckdb
+.terraform/
+
+
+# Flink/Java Connectors
+*.jar
+
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/

@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: supply_source
+    database: de-zoomcamp-2-485306
+    schema: market_radar_raw_7      # Matches your supply dataset
+    tables:
+      - name: supply_external       # Matches your supply table name
+
+  - name: demand_source
+    database: de-zoomcamp-2-485306
+    schema: market_radar_dataset    # Matches your demand dataset
+    tables:
+      - name: raw_demand            # Matches your demand table name
